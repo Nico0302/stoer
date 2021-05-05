@@ -177,7 +177,9 @@ function createDayChart() {
       defaultLocale: "de",
       events: {
         dataPointSelection: function (event, chartContext, config) {
-          const date = series[config.seriesIndex].data[config.dataPointIndex].x;
+          const date =
+            chartContext.series[config.seriesIndex].data[config.dataPointIndex]
+              .x;
           timeChart.zoomX(
             moment(date).subtract(14, "days").valueOf(),
             moment(date).add(14, "days").valueOf()
