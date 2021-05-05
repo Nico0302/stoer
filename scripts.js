@@ -11,6 +11,9 @@ $(document).ready(function () {
   });
 });
 
+let timeChart,
+  dayChart = null;
+
 const shortDays = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const shortMonths = [
   "Jan",
@@ -55,7 +58,7 @@ function drawTimeChart(csvData) {
     colors: ["#e60000"],
     chart: {
       type: "scatter",
-      height: 800,
+      height: 600,
       zoom: {
         type: "x",
       },
@@ -99,9 +102,9 @@ function drawTimeChart(csvData) {
     },
   };
 
-  var chart = new ApexCharts(document.querySelector("#chart"), options);
+  timeChart = new ApexCharts(document.querySelector("#chart"), options);
 
-  chart.render();
+  timeChart.render();
 }
 
 function drawDayChart(csvData) {
@@ -115,8 +118,6 @@ function drawDayChart(csvData) {
       dates[date] = 1;
     }
   });
-
-  console.log(dates);
 
   const series = ["So", "Sa", "Fr", "Do", "Mi", "Di", "Mo"].map(
     (name, index) => {
@@ -140,7 +141,6 @@ function drawDayChart(csvData) {
     }
   );
 
-  console.log(series);
   var options = {
     series: series,
     chart: {
@@ -154,6 +154,15 @@ function drawDayChart(csvData) {
       },
       locales,
       defaultLocale: "de",
+      events: {
+        dataPointSelection: function (event, chartContext, config) {
+          const date = series[config.seriesIndex].data[config.dataPointIndex].x;
+          timeChart.zoomX(
+            moment(date).subtract(14, "days").valueOf(),
+            moment(date).add(14, "days").valueOf()
+          );
+        },
+      },
     },
     plotOptions: {
       heatmap: {
@@ -196,7 +205,7 @@ function drawDayChart(csvData) {
     },
   };
 
-  var chart = new ApexCharts(document.querySelector("#weekChart"), options);
+  dayChart = new ApexCharts(document.querySelector("#weekChart"), options);
 
-  chart.render();
+  dayChart.render();
 }
