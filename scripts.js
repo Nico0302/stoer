@@ -38,7 +38,7 @@ const locales = [
     },
   },
 ];
-const startDate = new Date("2020-07-01").getTime();
+const startDate = new Date("2020-12-01").getTime();
 const endDate = new Date().getTime();
 
 function drawTimeChart(csvData) {
