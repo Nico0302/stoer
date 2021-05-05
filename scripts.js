@@ -1,18 +1,14 @@
 $(document).ready(function () {
-  $.ajax({
-    type: "GET",
-    url: "https://online-graph.hosting145113.a2e91.netcup.net/data.csv",
-    dataType: "text",
-    success: function (data) {
-      const csvData = data.split("\n").slice(0, -1);
-      drawTimeChart(csvData);
-      drawDayChart(csvData);
-    },
-  });
+  createTimeChart();
+  createDayChart();
+  fetchData();
 });
 
 let timeChart,
-  dayChart = null;
+  dayChart,
+  rawData = null;
+
+let dataCleanUp = false;
 
 const shortDays = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const shortMonths = [
@@ -41,24 +37,53 @@ const locales = [
 const startDate = new Date("2020-12-01").getTime();
 const endDate = new Date().getTime();
 
-function drawTimeChart(csvData) {
-  let data = csvData.map((row) => {
-    const timestamp = row.split(",")[0].split("T");
-    const time = timestamp[1].split(/:/g);
-    return [timestamp[0], parseInt(time[0]) * 60 + parseInt(time[1])];
-  });
+function toggleCleanUp() {
+  const checkBox = document.getElementById("cleanup");
+  dataCleanUp = checkBox.checked;
+  updateCharts();
+}
 
+function updateCharts() {
+  let data = rawData;
+
+  if (dataCleanUp) {
+    let lastDate = null;
+    data = data.filter((row) => {
+      const result =
+        !lastDate || Math.abs(moment(row).diff(lastDate, "minutes")) > 30;
+      if (result) {
+        lastDate = row;
+      }
+      return result;
+    });
+  }
+  updateTimeChart(data);
+  updateDayChart(data);
+}
+
+function fetchData() {
+  $.ajax({
+    type: "GET",
+    url: "https://online-graph.hosting145113.a2e91.netcup.net/data.csv",
+    dataType: "text",
+    success: function (data) {
+      rawData = data
+        .split("\n")
+        .slice(0, -1)
+        .map((row) => row.split(",")[0]);
+
+      updateCharts();
+    },
+  });
+}
+
+function createTimeChart() {
   var options = {
-    series: [
-      {
-        name: "Ausfall",
-        data: data,
-      },
-    ],
+    series: [],
     colors: ["#e60000"],
     chart: {
       type: "scatter",
-      height: 600,
+      height: 700,
       zoom: {
         type: "x",
       },
@@ -83,6 +108,20 @@ function drawTimeChart(csvData) {
         },
       },
     },
+    annotations: {
+      xaxis: ["2021-03-31", "2021-03-23", "2020-12-30"].map((date) => ({
+        x: new Date(date).getTime(),
+        borderColor: "#00E396",
+        label: {
+          borderColor: "#00E396",
+          style: {
+            color: "#fff",
+            background: "#00E396",
+          },
+          text: "Techniker",
+        },
+      })),
+    },
     xaxis: {
       type: "datetime",
       max: endDate,
@@ -94,9 +133,9 @@ function drawTimeChart(csvData) {
       tickAmount: 24,
       labels: {
         formatter: function (value) {
-          const hours = Math.round(value / 60);
+          const hours = Math.floor(value / 60);
           const minutes = value % 60;
-          return `${hours}:${minutes}${minutes % 10 === 0 ? 0 : ""}`;
+          return `${hours}:${minutes}${minutes % 10 === 0 ? "0" : ""}`;
         },
       },
     },
@@ -107,45 +146,27 @@ function drawTimeChart(csvData) {
   timeChart.render();
 }
 
-function drawDayChart(csvData) {
-  let dates = {};
-
-  csvData.forEach((row) => {
-    const date = row.split(",")[0].split("T")[0];
-    if (dates[date]) {
-      dates[date] += 1;
-    } else {
-      dates[date] = 1;
-    }
+function updateTimeChart(csvData) {
+  let data = csvData.map((row) => {
+    const timestamp = row.split("T");
+    const time = timestamp[1].split(/:/g);
+    return [timestamp[0], parseInt(time[0]) * 60 + parseInt(time[1])];
   });
 
-  const series = ["So", "Sa", "Fr", "Do", "Mi", "Di", "Mo"].map(
-    (name, index) => {
-      const isoWeekday = 6 - index + 1;
-      let data = [];
-      let date = moment(startDate).isoWeekday(isoWeekday);
+  timeChart.updateSeries([
+    {
+      name: "Ausfall",
+      data: data,
+    },
+  ]);
+}
 
-      while (date.isBefore(endDate)) {
-        const dateKey = date.format("YYYY-MM-DD");
-        data.push({
-          x: dateKey,
-          y: dates[dateKey] || 0,
-        });
-        date.add(7, "days");
-      }
-
-      return {
-        name,
-        data,
-      };
-    }
-  );
-
+function createDayChart() {
   var options = {
-    series: series,
+    series: [],
     chart: {
       type: "heatmap",
-      height: 400,
+      height: 300,
       zoom: {
         enabled: false,
       },
@@ -208,4 +229,41 @@ function drawDayChart(csvData) {
   dayChart = new ApexCharts(document.querySelector("#weekChart"), options);
 
   dayChart.render();
+}
+
+function updateDayChart(csvData) {
+  let dates = {};
+
+  csvData.forEach((row) => {
+    const date = row.split("T")[0];
+    if (dates[date]) {
+      dates[date] += 1;
+    } else {
+      dates[date] = 1;
+    }
+  });
+
+  const series = ["So", "Sa", "Fr", "Do", "Mi", "Di", "Mo"].map(
+    (name, index) => {
+      const isoWeekday = 6 - index + 1;
+      let data = [];
+      let date = moment(startDate).isoWeekday(isoWeekday);
+
+      while (date.isBefore(endDate)) {
+        const dateKey = date.format("YYYY-MM-DD");
+        data.push({
+          x: dateKey,
+          y: dates[dateKey] || 0,
+        });
+        date.add(7, "days");
+      }
+
+      return {
+        name,
+        data,
+      };
+    }
+  );
+
+  dayChart.updateSeries(series);
 }
