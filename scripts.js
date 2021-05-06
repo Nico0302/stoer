@@ -35,7 +35,7 @@ const locales = [
   },
 ];
 const startDate = new Date("2020-12-01").getTime();
-const endDate = new Date().getTime();
+const endDate = moment().subtract(1, "day").endOf("day").valueOf();
 
 function toggleCleanUp() {
   const checkBox = document.getElementById("cleanup");
@@ -178,8 +178,9 @@ function createDayChart() {
       events: {
         dataPointSelection: function (event, chartContext, config) {
           const date =
-            chartContext.series[config.seriesIndex].data[config.dataPointIndex]
-              .x;
+            config.w.config.series[config.seriesIndex].data[
+              config.dataPointIndex
+            ].x;
           timeChart.zoomX(
             moment(date).subtract(14, "days").valueOf(),
             moment(date).add(14, "days").valueOf()
